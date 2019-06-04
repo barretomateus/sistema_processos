@@ -51,6 +51,10 @@ def get_user_processos(request):
             new_tipos += tipos_processos_legenda[tipo] + ', ' if tipo in tipos_processos_legenda else ''
         
         new_tipos = new_tipos[:-2]
+
+        if 'outros' in processo.tipo_processo:
+            new_tipos += ', Outros'
+
         setattr(processo, 'tipo_processo', new_tipos)
 
     return render(request, 'processos.html', {'processos': processos})
@@ -98,6 +102,10 @@ def edit_user_processo(request, id_processo):
 
             for tipo in request.POST.getlist('tipos[]'):
                 tipos += tipo + ','
+
+            tipos = tipos[:-1]
+            if 'outros' in request.POST['tipos[]']:
+                tipos += ':' + request.POST['outros']
 
             obj.tipo_processo = tipos
             obj.save()
