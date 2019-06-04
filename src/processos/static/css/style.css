@@ -1,0 +1,40 @@
+html {
+    height: 100%;
+}
+
+body {
+    min-height: 100%;
+}
+
+.main-content,
+.index-main-div {
+    min-height: 100vh;
+}
+
+@media (min-width: 992px){
+    .index-main-div div{
+        max-width: 992px;
+    }
+}
+
+.navbar-collapse .navbar-collapse-header
+{
+    display: block;
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+#id_esclarecimentos {
+    width: 100%;
+}
+
+ion-icon {
+    font-size: 14px;
+    position: relative;
+    top: 2px;
+}
+
+.btn-inner--icon {
+    line-height: 1;
+}

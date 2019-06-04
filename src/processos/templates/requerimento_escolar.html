@@ -1,0 +1,1086 @@
+{% load static %}
+<!DOCTYPE html>
+<!-- Created by pdf2htmlEX (https://github.com/coolwanglu/pdf2htmlex) -->
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="generator" content="pdf2htmlEX" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+
+    <link type="text/css" href="{% static 'css/requerimento.css' %}" rel="stylesheet">
+
+    <script>
+        /*
+         Copyright 2012 Mozilla Foundation 
+         Copyright 2013 Lu Wang <coolwanglu@gmail.com>
+         Apachine License Version 2.0 
+        */
+        (function() {
+            function b(a, b, e, f) {
+                var c = (a.className || "").split(/\s+/g);
+                "" === c[0] && c.shift();
+                var d = c.indexOf(b);
+                0 > d && e && c.push(b);
+                0 <= d && f && c.splice(d, 1);
+                a.className = c.join(" ");
+                return 0 <= d
+            }
+            if (!("classList" in document.createElement("div"))) {
+                var e = {
+                    add: function(a) {
+                        b(this.element, a, !0, !1)
+                    },
+                    contains: function(a) {
+                        return b(this.element, a, !1, !1)
+                    },
+                    remove: function(a) {
+                        b(this.element, a, !1, !0)
+                    },
+                    toggle: function(a) {
+                        b(this.element, a, !0, !0)
+                    }
+                };
+                Object.defineProperty(HTMLElement.prototype, "classList", {
+                    get: function() {
+                        if (this._classList) return this._classList;
+                        var a = Object.create(e, {
+                            element: {
+                                value: this,
+                                writable: !1,
+                                enumerable: !0
+                            }
+                        });
+                        Object.defineProperty(this, "_classList", {
+                            value: a,
+                            writable: !1,
+                            enumerable: !1
+                        });
+                        return a
+                    },
+                    enumerable: !0
+                })
+            }
+        })();
+    </script>
+    <script>
+        (function() {
+            /*
+             pdf2htmlEX.js: Core UI functions for pdf2htmlEX 
+             Copyright 2012,2013 Lu Wang <coolwanglu@gmail.com> and other contributors 
+             https://github.com/coolwanglu/pdf2htmlEX/blob/master/share/LICENSE 
+            */
+            var pdf2htmlEX = window.pdf2htmlEX = window.pdf2htmlEX || {},
+                CSS_CLASS_NAMES = {
+                    page_frame: "pf",
+                    page_content_box: "pc",
+                    page_data: "pi",
+                    background_image: "bi",
+                    link: "l",
+                    input_radio: "ir",
+                    __dummy__: "no comma"
+                },
+                DEFAULT_CONFIG = {
+                    container_id: "page-container",
+                    sidebar_id: "sidebar",
+                    outline_id: "outline",
+                    loading_indicator_cls: "loading-indicator",
+                    preload_pages: 3,
+                    render_timeout: 100,
+                    scale_step: 0.9,
+                    key_handler: !0,
+                    hashchange_handler: !0,
+                    view_history_handler: !0,
+                    __dummy__: "no comma"
+                },
+                EPS = 1E-6;
+
+            function invert(a) {
+                var b = a[0] * a[3] - a[1] * a[2];
+                return [a[3] / b, -a[1] / b, -a[2] / b, a[0] / b, (a[2] * a[5] - a[3] * a[4]) / b, (a[1] * a[4] - a[0] * a[5]) / b]
+            }
+
+            function transform(a, b) {
+                return [a[0] * b[0] + a[2] * b[1] + a[4], a[1] * b[0] + a[3] * b[1] + a[5]]
+            }
+
+            function get_page_number(a) {
+                return parseInt(a.getAttribute("data-page-no"), 16)
+            }
+
+            function disable_dragstart(a) {
+                for (var b = 0, c = a.length; b < c; ++b) a[b].addEventListener("dragstart", function() {
+                    return !1
+                }, !1)
+            }
+
+            function clone_and_extend_objs(a) {
+                for (var b = {}, c = 0, e = arguments.length; c < e; ++c) {
+                    var h = arguments[c],
+                        d;
+                    for (d in h) h.hasOwnProperty(d) && (b[d] = h[d])
+                }
+                return b
+            }
+
+            function Page(a) {
+                if (a) {
+                    this.shown = this.loaded = !1;
+                    this.page = a;
+                    this.num = get_page_number(a);
+                    this.original_height = a.clientHeight;
+                    this.original_width = a.clientWidth;
+                    var b = a.getElementsByClassName(CSS_CLASS_NAMES.page_content_box)[0];
+                    b && (this.content_box = b, this.original_scale = this.cur_scale = this.original_height / b.clientHeight, this.page_data = JSON.parse(a.getElementsByClassName(CSS_CLASS_NAMES.page_data)[0].getAttribute("data-data")), this.ctm = this.page_data.ctm, this.ictm = invert(this.ctm), this.loaded = !0)
+                }
+            }
+            Page.prototype = {
+                hide: function() {
+                    this.loaded && this.shown && (this.content_box.classList.remove("opened"), this.shown = !1)
+                },
+                show: function() {
+                    this.loaded && !this.shown && (this.content_box.classList.add("opened"), this.shown = !0)
+                },
+                rescale: function(a) {
+                    this.cur_scale = 0 === a ? this.original_scale : a;
+                    this.loaded && (a = this.content_box.style, a.msTransform = a.webkitTransform = a.transform = "scale(" + this.cur_scale.toFixed(3) + ")");
+                    a = this.page.style;
+                    a.height = this.original_height * this.cur_scale + "px";
+                    a.width = this.original_width * this.cur_scale +
+                        "px"
+                },
+                view_position: function() {
+                    var a = this.page,
+                        b = a.parentNode;
+                    return [b.scrollLeft - a.offsetLeft - a.clientLeft, b.scrollTop - a.offsetTop - a.clientTop]
+                },
+                height: function() {
+                    return this.page.clientHeight
+                },
+                width: function() {
+                    return this.page.clientWidth
+                }
+            };
+
+            function Viewer(a) {
+                this.config = clone_and_extend_objs(DEFAULT_CONFIG, 0 < arguments.length ? a : {});
+                this.pages_loading = [];
+                this.init_before_loading_content();
+                var b = this;
+                document.addEventListener("DOMContentLoaded", function() {
+                    b.init_after_loading_content()
+                }, !1)
+            }
+            Viewer.prototype = {
+                scale: 1,
+                cur_page_idx: 0,
+                first_page_idx: 0,
+                init_before_loading_content: function() {
+                    this.pre_hide_pages()
+                },
+                initialize_radio_button: function() {
+                    for (var a = document.getElementsByClassName(CSS_CLASS_NAMES.input_radio), b = 0; b < a.length; b++) a[b].addEventListener("click", function() {
+                        this.classList.toggle("checked")
+                    })
+                },
+                init_after_loading_content: function() {
+                    this.sidebar = document.getElementById(this.config.sidebar_id);
+                    this.outline = document.getElementById(this.config.outline_id);
+                    this.container = document.getElementById(this.config.container_id);
+                    this.loading_indicator = document.getElementsByClassName(this.config.loading_indicator_cls)[0];
+                    for (var a = !0, b = this.outline.childNodes, c = 0, e = b.length; c < e; ++c)
+                        if ("ul" === b[c].nodeName.toLowerCase()) {
+                            a = !1;
+                            break
+                        }
+                    a || this.sidebar.classList.add("opened");
+                    this.find_pages();
+                    if (0 != this.pages.length) {
+                        disable_dragstart(document.getElementsByClassName(CSS_CLASS_NAMES.background_image));
+                        this.config.key_handler && this.register_key_handler();
+                        var h = this;
+                        this.config.hashchange_handler && window.addEventListener("hashchange",
+                            function(a) {
+                                h.navigate_to_dest(document.location.hash.substring(1))
+                            }, !1);
+                        this.config.view_history_handler && window.addEventListener("popstate", function(a) {
+                            a.state && h.navigate_to_dest(a.state)
+                        }, !1);
+                        this.container.addEventListener("scroll", function() {
+                            h.update_page_idx();
+                            h.schedule_render(!0)
+                        }, !1);
+                        [this.container, this.outline].forEach(function(a) {
+                            a.addEventListener("click", h.link_handler.bind(h), !1)
+                        });
+                        this.initialize_radio_button();
+                        this.render()
+                    }
+                },
+                find_pages: function() {
+                    for (var a = [], b = {}, c = this.container.childNodes,
+                            e = 0, h = c.length; e < h; ++e) {
+                        var d = c[e];
+                        d.nodeType === Node.ELEMENT_NODE && d.classList.contains(CSS_CLASS_NAMES.page_frame) && (d = new Page(d), a.push(d), b[d.num] = a.length - 1)
+                    }
+                    this.pages = a;
+                    this.page_map = b
+                },
+                load_page: function(a, b, c) {
+                    var e = this.pages;
+                    if (!(a >= e.length || (e = e[a], e.loaded || this.pages_loading[a]))) {
+                        var e = e.page,
+                            h = e.getAttribute("data-page-url");
+                        if (h) {
+                            this.pages_loading[a] = !0;
+                            var d = e.getElementsByClassName(this.config.loading_indicator_cls)[0];
+                            "undefined" === typeof d && (d = this.loading_indicator.cloneNode(!0),
+                                d.classList.add("active"), e.appendChild(d));
+                            var f = this,
+                                g = new XMLHttpRequest;
+                            g.open("GET", h, !0);
+                            g.onload = function() {
+                                if (200 === g.status || 0 === g.status) {
+                                    var b = document.createElement("div");
+                                    b.innerHTML = g.responseText;
+                                    for (var d = null, b = b.childNodes, e = 0, h = b.length; e < h; ++e) {
+                                        var p = b[e];
+                                        if (p.nodeType === Node.ELEMENT_NODE && p.classList.contains(CSS_CLASS_NAMES.page_frame)) {
+                                            d = p;
+                                            break
+                                        }
+                                    }
+                                    b = f.pages[a];
+                                    f.container.replaceChild(d, b.page);
+                                    b = new Page(d);
+                                    f.pages[a] = b;
+                                    b.hide();
+                                    b.rescale(f.scale);
+                                    disable_dragstart(d.getElementsByClassName(CSS_CLASS_NAMES.background_image));
+                                    f.schedule_render(!1);
+                                    c && c(b)
+                                }
+                                delete f.pages_loading[a]
+                            };
+                            g.send(null)
+                        }
+                        void 0 === b && (b = this.config.preload_pages);
+                        0 < --b && (f = this, setTimeout(function() {
+                            f.load_page(a + 1, b)
+                        }, 0))
+                    }
+                },
+                pre_hide_pages: function() {
+                    var a = "@media screen{." + CSS_CLASS_NAMES.page_content_box + "{display:none;}}",
+                        b = document.createElement("style");
+                    b.styleSheet ? b.styleSheet.cssText = a : b.appendChild(document.createTextNode(a));
+                    document.head.appendChild(b)
+                },
+                render: function() {
+                    for (var a = this.container, b = a.scrollTop, c = a.clientHeight, a = b - c, b =
+                            b + c + c, c = this.pages, e = 0, h = c.length; e < h; ++e) {
+                        var d = c[e],
+                            f = d.page,
+                            g = f.offsetTop + f.clientTop,
+                            f = g + f.clientHeight;
+                        g <= b && f >= a ? d.loaded ? d.show() : this.load_page(e) : d.hide()
+                    }
+                },
+                update_page_idx: function() {
+                    var a = this.pages,
+                        b = a.length;
+                    if (!(2 > b)) {
+                        for (var c = this.container, e = c.scrollTop, c = e + c.clientHeight, h = -1, d = b, f = d - h; 1 < f;) {
+                            var g = h + Math.floor(f / 2),
+                                f = a[g].page;
+                            f.offsetTop + f.clientTop + f.clientHeight >= e ? d = g : h = g;
+                            f = d - h
+                        }
+                        this.first_page_idx = d;
+                        for (var g = h = this.cur_page_idx, k = 0; d < b; ++d) {
+                            var f = a[d].page,
+                                l = f.offsetTop + f.clientTop,
+                                f = f.clientHeight;
+                            if (l > c) break;
+                            f = (Math.min(c, l + f) - Math.max(e, l)) / f;
+                            if (d === h && Math.abs(f - 1) <= EPS) {
+                                g = h;
+                                break
+                            }
+                            f > k && (k = f, g = d)
+                        }
+                        this.cur_page_idx = g
+                    }
+                },
+                schedule_render: function(a) {
+                    if (void 0 !== this.render_timer) {
+                        if (!a) return;
+                        clearTimeout(this.render_timer)
+                    }
+                    var b = this;
+                    this.render_timer = setTimeout(function() {
+                        delete b.render_timer;
+                        b.render()
+                    }, this.config.render_timeout)
+                },
+                register_key_handler: function() {
+                    var a = this;
+                    window.addEventListener("DOMMouseScroll", function(b) {
+                        if (b.ctrlKey) {
+                            b.preventDefault();
+                            var c = a.container,
+                                e = c.getBoundingClientRect(),
+                                c = [b.clientX - e.left - c.clientLeft, b.clientY - e.top - c.clientTop];
+                            a.rescale(Math.pow(a.config.scale_step, b.detail), !0, c)
+                        }
+                    }, !1);
+                    window.addEventListener("keydown", function(b) {
+                        var c = !1,
+                            e = b.ctrlKey || b.metaKey,
+                            h = b.altKey;
+                        switch (b.keyCode) {
+                            case 61:
+                            case 107:
+                            case 187:
+                                e && (a.rescale(1 / a.config.scale_step, !0), c = !0);
+                                break;
+                            case 173:
+                            case 109:
+                            case 189:
+                                e && (a.rescale(a.config.scale_step, !0), c = !0);
+                                break;
+                            case 48:
+                                e && (a.rescale(0, !1), c = !0);
+                                break;
+                            case 33:
+                                h ? a.scroll_to(a.cur_page_idx - 1) : a.container.scrollTop -=
+                                    a.container.clientHeight;
+                                c = !0;
+                                break;
+                            case 34:
+                                h ? a.scroll_to(a.cur_page_idx + 1) : a.container.scrollTop += a.container.clientHeight;
+                                c = !0;
+                                break;
+                            case 35:
+                                a.container.scrollTop = a.container.scrollHeight;
+                                c = !0;
+                                break;
+                            case 36:
+                                a.container.scrollTop = 0, c = !0
+                        }
+                        c && b.preventDefault()
+                    }, !1)
+                },
+                rescale: function(a, b, c) {
+                    var e = this.scale;
+                    this.scale = a = 0 === a ? 1 : b ? e * a : a;
+                    c || (c = [0, 0]);
+                    b = this.container;
+                    c[0] += b.scrollLeft;
+                    c[1] += b.scrollTop;
+                    for (var h = this.pages, d = h.length, f = this.first_page_idx; f < d; ++f) {
+                        var g = h[f].page;
+                        if (g.offsetTop + g.clientTop >=
+                            c[1]) break
+                    }
+                    g = f - 1;
+                    0 > g && (g = 0);
+                    var g = h[g].page,
+                        k = g.clientWidth,
+                        f = g.clientHeight,
+                        l = g.offsetLeft + g.clientLeft,
+                        m = c[0] - l;
+                    0 > m ? m = 0 : m > k && (m = k);
+                    k = g.offsetTop + g.clientTop;
+                    c = c[1] - k;
+                    0 > c ? c = 0 : c > f && (c = f);
+                    for (f = 0; f < d; ++f) h[f].rescale(a);
+                    b.scrollLeft += m / e * a + g.offsetLeft + g.clientLeft - m - l;
+                    b.scrollTop += c / e * a + g.offsetTop + g.clientTop - c - k;
+                    this.schedule_render(!0)
+                },
+                fit_width: function() {
+                    var a = this.cur_page_idx;
+                    this.rescale(this.container.clientWidth / this.pages[a].width(), !0);
+                    this.scroll_to(a)
+                },
+                fit_height: function() {
+                    var a = this.cur_page_idx;
+                    this.rescale(this.container.clientHeight / this.pages[a].height(), !0);
+                    this.scroll_to(a)
+                },
+                get_containing_page: function(a) {
+                    for (; a;) {
+                        if (a.nodeType === Node.ELEMENT_NODE && a.classList.contains(CSS_CLASS_NAMES.page_frame)) {
+                            a = get_page_number(a);
+                            var b = this.page_map;
+                            return a in b ? this.pages[b[a]] : null
+                        }
+                        a = a.parentNode
+                    }
+                    return null
+                },
+                link_handler: function(a) {
+                    var b = a.target,
+                        c = b.getAttribute("data-dest-detail");
+                    if (c) {
+                        if (this.config.view_history_handler) try {
+                            var e = this.get_current_view_hash();
+                            window.history.replaceState(e,
+                                "", "#" + e);
+                            window.history.pushState(c, "", "#" + c)
+                        } catch (h) {}
+                        this.navigate_to_dest(c, this.get_containing_page(b));
+                        a.preventDefault()
+                    }
+                },
+                navigate_to_dest: function(a, b) {
+                    try {
+                        var c = JSON.parse(a)
+                    } catch (e) {
+                        return
+                    }
+                    if (c instanceof Array) {
+                        var h = c[0],
+                            d = this.page_map;
+                        if (h in d) {
+                            for (var f = d[h], h = this.pages[f], d = 2, g = c.length; d < g; ++d) {
+                                var k = c[d];
+                                if (null !== k && "number" !== typeof k) return
+                            }
+                            for (; 6 > c.length;) c.push(null);
+                            var g = b || this.pages[this.cur_page_idx],
+                                d = g.view_position(),
+                                d = transform(g.ictm, [d[0], g.height() - d[1]]),
+                                g = this.scale,
+                                l = [0, 0],
+                                m = !0,
+                                k = !1,
+                                n = this.scale;
+                            switch (c[1]) {
+                                case "XYZ":
+                                    l = [null === c[2] ? d[0] : c[2] * n, null === c[3] ? d[1] : c[3] * n];
+                                    g = c[4];
+                                    if (null === g || 0 === g) g = this.scale;
+                                    k = !0;
+                                    break;
+                                case "Fit":
+                                case "FitB":
+                                    l = [0, 0];
+                                    k = !0;
+                                    break;
+                                case "FitH":
+                                case "FitBH":
+                                    l = [0, null === c[2] ? d[1] : c[2] * n];
+                                    k = !0;
+                                    break;
+                                case "FitV":
+                                case "FitBV":
+                                    l = [null === c[2] ? d[0] : c[2] * n, 0];
+                                    k = !0;
+                                    break;
+                                case "FitR":
+                                    l = [c[2] * n, c[5] * n], m = !1, k = !0
+                            }
+                            if (k) {
+                                this.rescale(g, !1);
+                                var p = this,
+                                    c = function(a) {
+                                        l = transform(a.ctm, l);
+                                        m && (l[1] = a.height() - l[1]);
+                                        p.scroll_to(f, l)
+                                    };
+                                h.loaded ?
+                                    c(h) : (this.load_page(f, void 0, c), this.scroll_to(f))
+                            }
+                        }
+                    }
+                },
+                scroll_to: function(a, b) {
+                    var c = this.pages;
+                    if (!(0 > a || a >= c.length)) {
+                        c = c[a].view_position();
+                        void 0 === b && (b = [0, 0]);
+                        var e = this.container;
+                        e.scrollLeft += b[0] - c[0];
+                        e.scrollTop += b[1] - c[1]
+                    }
+                },
+                get_current_view_hash: function() {
+                    var a = [],
+                        b = this.pages[this.cur_page_idx];
+                    a.push(b.num);
+                    a.push("XYZ");
+                    var c = b.view_position(),
+                        c = transform(b.ictm, [c[0], b.height() - c[1]]);
+                    a.push(c[0] / this.scale);
+                    a.push(c[1] / this.scale);
+                    a.push(this.scale);
+                    return JSON.stringify(a)
+                }
+            };
+            pdf2htmlEX.Viewer = Viewer;
+        })();
+    </script>
+    <script>
+        try {
+            pdf2htmlEX.defaultViewer = new pdf2htmlEX.Viewer({});
+        } catch (e) {}
+    </script>
+    <title></title>
+</head>
+
+<body>
+    <div id="sidebar">
+        <div id="outline">
+        </div>
+    </div>
+    <div id="page-container">
+        <div id="pf1" class="pf w0 h0" data-page-no="1">
+            <div class="pc pc1 w0 h0"><img class="bi x0 y0 w1 h1" alt="" src="data:image/png;base64,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BAAA4LTFfr9/tn0tFt5QAADgvP1+/5wdAgAAcAnjsgAAAB0CAADoEAAAAB0CAADoEAAAAB0CAADoEAAAAB0CAADoEAAAQIcAAADoEAAAQIcAAADoEAAAQIcAAADoEAAAQIcAAAA6BAAAQIcAAAA6BAAAQIcAAAA6BAAAQIcAAAA6BAAA0CEAAAA6BAAA0CEAAAA6BAAA0CEAAAA6BAAA0CEAAAA6BAAA0CEAAIAOAQAA0CEAAIAOAQAA0CEAAIAOAQAA0CEAAIAOAQAAdAgAAIAOAQAAdAgAAIAOAQAAdAgAAIAOAQAAdAgAAKBDAAAAdAgAAKBDAAAAdAgAAKBDAAAAdAgAAKBDAAAAdAgAAKBDAAAAHQIAAKBDAAAAHQIAAKBDAAAAHQIAAKBDAAAAHQIAAOgQAAAAHQIAAOgQAAAAHQIAAOgQAAAAHQIAAOgQAABAhwAAAOgQAABAhwAAAOgQAABAhwAAAOgQAABAhwAAADoEAABAhwAAADoEAABAhwAAADoEAABAhwAAADoEAABAhwAAADoEAADQIQAAADoEAADQIQAAADoEAADQIQAAADoEAADQIQAAgA4BAADQIQAAgA4BAADQIQAAgA4BAADQIQAAgA4BAAB0CAAAgA4BAAB0CAAAgA4BAAB0CAAAgA4BAAB0CAAAgA4BAAB0CAAAoEMAAAB0CAAAoEMAAAB0CAAAoEMAAAB0CAAAoEMAAAAdAgAAoEMAAAAdAgAAoEMAAAAdAgAAoEMAAAAdAgAA6BAAAAAdAgAA6BAAAAAdAgAA6BAAAAAdAgAA6BAAAAAdAgAA6BAAAECHAAAA6BAAAECHAAAA6BAAAECHAAAA6BAAAECHAAAAOgQAAECHAAAAOgQAAECHAAAAOgQAAECHAAAAOgQAANAhAAAAOgQAANAhAAAAOgQAANAhAAAAOgQAANAhAACADgEAANAhAACADgEAANAhAACADgEAANAhAACADgEAANAhAACADgEAAHQIAACADgEAAHQIAACADgEAAHQIAACADgEAAHQIAACgQwAAAHQIAACgQwAAAHQIAACgQwAAAHQIAACgQwAAAB0CAACgQwAAAB0CAACgQwAAAB0CAACgQwAAAB0CAACgQwAAAB0CAADoEAAAAB0CAADoEAAAAB0CAADoEAAAAB0CAADoEAAAQIcAAADoEAAAQIcAAADoEAAAQIcAAADoEAAAQIcAAAA6BAAAQIcAAAA6BAAAQIcAAAA6BAAAQIcAAAA6BAAA0CEAAAA6BAAA0CEAAAA6BAAA0CEAAAA6BAAA0CEAAAA6BAAA0CEAAIAOAQAA0CEAAIAOAQAA0CEAAIAOAQAA0CEAAIAOAQAAdAgAAIAOAQAAdAgAAIAOAQAAdAgAAIAOAQAAdAgAAKBDAAAAdAgAAKBDAAAAdAgAAKBDAAAAdAgAAKBDAAAAdAgAAKBDAAAAHQIAAKBDAAAAHQIAAKBDAAAAHQIAAKBDAAAAHQIAAOgQAAAAHQIAAOgQAAAAHQIAAOgQAAAAHQIAAOgQAABAhwAAAOgQAABAhwAAAOgQAABAhwAAAOgQAABAhwAAAOgQAABAhwAAADoEAABAhwAAADoEAABAhwAAADoEAABAhwAAADoEAADQIQAAADoEAADQIQAAADoEAADQIQAAADoEAADQIQAAgA4BAADQIQAAgA4BAADQIQAAgA4BAADQIQAAgA4BAAB0CAAAgA4BAAB0CAAAgA4BAAB0CAAAgA4BAAB0CAAAgA4BAAB0CAAAoEMAAAB0CAAAoEMAAAB0CAAAoEMAAAB0CAAAoEMAAAAdAgAAoEMAAAAdAgAAoEMAAAAdAgAAoEMAAAAdAgAA6BAAAAAdAgAA6BAAAAAdAgAA6BAAAAAdAgAA6BAAAAAdAgAA6BAAAECHAAAA6BAAAECHAAAA6BAAAECHAAAA6BAAAECHAAAAOgQAAECHAAAAOgQAAECHAAAAOgQAAECHAAAAOgQAANAhAAAAOgQAANAhAAAAOgQAANAhAAAAOgQAANAhAACADgEAANAhAACADgEAANAhAACADgEAANAhAACADgEAANAhAACADgEAAHQIAACADgEAAHQIAACADgEAAHQIAACADgEAAHQIAACgQwAAAHQIAACgQwAAAHQIAACgQwAAAHQIAACgQwAAAB0CAACgQwAAAB0CAACgQwAAAB0CAACgQwAAAB0CAACgQwAAAB0CAADoEAAAAB0CAADoEAAAAB0CAADoEAAAAB0CAADoEAAAQIcAAADoEAAAQIcAAADoEAAAQIcAAADoEAAAQIcAAAA6BAAAQIcAAAA6BAAAQIcAAAA6BAAAQIcAAAA6BAAAQIcAAAA6BAAA0CEAAAA6BAAA0CEAAAA6BAAA0CEAAAA6BAAA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" />
+                <div class="c x1 y1 w2 h2">
+                    <div class="t m0 x2 h3 y2 ff1 fs0 fc0 sc0 ls0 ws0">Folha _______<span class="_ _0"></span>_ </div>
+                </div>
+                <div class="c x3 y3 w3 h0">
+                    <div class="t m0 x4 h4 y4 ff2 fs1 fc0 sc0 ls0 ws0"> </div>
+                    <div class="t m0 x4 h4 y5 ff2 fs1 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x5 y6 w4 h5">
+                    <div class="t m0 x6 h6 y7 ff1 fs2 fc0 sc0 ls0 ws0">UNIVERSIDADE FEDERAL DA BAHIA </div>
+                    <div class="t m0 x6 h7 y2 ff1 fs0 fc0 sc0 ls0 ws0">CARE - COORDENAÇÃ<span class="_ _0"></span>O DE ATENDIMENT<span class="_ _0"></span>O E REGISTROS E<span class="_ _0"></span>STUDANTIS<span class="_ _0"></span><span class="ff2 fs3"> </span></div>
+                </div>
+                <div class="c x3 y3 w3 h0">
+                    <div class="t m0 x7 h8 y8 ff3 fs0 fc0 sc0 ls0 ws0"> </div>
+                    <div class="t m0 x8 h9 y9 ff1 fs1 fc0 sc0 ls0 ws0">CARE <span class="ff4">–</span> COORDENAÇ<span class="_ _0"></span>ÃO DE ATENDIMENTO<span class="_ _0"></span> E REGISTROS<span class="_ _0"></span> ESTUDANTIS<span class="_ _0"></span> </div>
+                    <div class="t m0 x9 h4 ya ff1 fs1 fc0 sc0 ls0 ws0">Endereço:<span class="ff2"> R<span class="_ _1"></span>u<span class="_ _1"></span>a <span class="_ _1"></span>Araújo Pinho, 265 - Canela CEP<span class="_ _0"></span>: 40110-1<span class="_ _0"></span>50 - <span class="_ _1"></span>S<span class="_ _1"></span>a<span class="_ _1"></span>l<span class="_ _1"></span>va<span class="_ _1"></span>d<span class="_ _1"></span>o<span class="_ _1"></span>r/<span class="_ _1"></span>B<span class="_ _1"></span>a<span class="_ _1"></span>h<span class="_ _1"></span>ia<span class="_ _1"></span> </span>
+                    </div>
+                    <div class="t m0 xa h4 yb ff2 fs1 fc0 sc0 ls0 ws0"> <span class="_ _1"></span>e<span class="_ _1"></span><span class="ff1">-m<span class="_ _1"></span>a<span class="_ _1"></span>il<span class="_ _1"></span>:<span class="_ _1"></span><span class="ff2"> <span class="_ _1"></span><span class="fc1">sg<span class="_ _1"></span>c<span class="_ _1"></span>@<span class="_ _1"></span>u<span class="_ _1"></span>fb<span class="_ _1"></span>a<span class="_ _1"></span>.<span class="_ _1"></span>br<span class="_ _1"></span><span class="fc0 ls1">  <span class="ls0"> </span></span>
+                        </span>
+                        </span>
+                        </span>
+                    </div>
+                    <div class="t m0 x7 ha yc ff2 fs4 fc0 sc0 ls0 ws0"> </div>
+                    <div class="t m0 x7 ha yd ff2 fs4 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c xb ye w5 hb">
+                    <div class="t m0 xb hc yf ff1 fs5 fc2 sc0 ls0 ws0">R</div>
+                    <div class="t m0 xc hc y10 ff1 fs5 fc0 sc0 ls0 ws0">R</div>
+                    <div class="t m0 xd hc yf ff1 fs5 fc2 sc0 ls0 ws0">E</div>
+                    <div class="t m0 xd hc y10 ff1 fs5 fc0 sc0 ls0 ws0">E</div>
+                    <div class="t m0 xe hc yf ff1 fs5 fc2 sc0 ls0 ws0">Q</div>
+                    <div class="t m0 xe hc y10 ff1 fs5 fc0 sc0 ls0 ws0">Q</div>
+                    <div class="t m0 xf hc yf ff1 fs5 fc2 sc0 ls0 ws0">U</div>
+                    <div class="t m0 xf hc y10 ff1 fs5 fc0 sc0 ls0 ws0">U</div>
+                    <div class="t m0 x10 hc yf ff1 fs5 fc2 sc0 ls0 ws0">E</div>
+                    <div class="t m0 x10 hc y10 ff1 fs5 fc0 sc0 ls0 ws0">E</div>
+                    <div class="t m0 x11 hc yf ff1 fs5 fc2 sc0 ls0 ws0">R</div>
+                    <div class="t m0 x11 hc y10 ff1 fs5 fc0 sc0 ls0 ws0">R</div>
+                    <div class="t m0 x12 hc yf ff1 fs5 fc2 sc0 ls0 ws0">I</div>
+                    <div class="t m0 x12 hc y10 ff1 fs5 fc0 sc0 ls0 ws0">I</div>
+                    <div class="t m0 x13 hc yf ff1 fs5 fc2 sc0 ls0 ws0">M</div>
+                    <div class="t m0 x13 hc y10 ff1 fs5 fc0 sc0 ls0 ws0">M</div>
+                    <div class="t m0 x14 hc yf ff1 fs5 fc2 sc0 ls0 ws0">E</div>
+                    <div class="t m0 x14 hc y10 ff1 fs5 fc0 sc0 ls0 ws0">E</div>
+                    <div class="t m0 x15 hc yf ff1 fs5 fc2 sc0 ls0 ws0">N</div>
+                    <div class="t m0 x15 hc y10 ff1 fs5 fc0 sc0 ls0 ws0">N</div>
+                    <div class="t m0 x16 hc yf ff1 fs5 fc2 sc0 ls0 ws0">T</div>
+                    <div class="t m0 x16 hc y10 ff1 fs5 fc0 sc0 ls0 ws0">T</div>
+                    <div class="t m0 x17 hc yf ff1 fs5 fc2 sc0 ls0 ws0">O</div>
+                    <div class="t m0 x17 hc y10 ff1 fs5 fc0 sc0 ls0 ws0">O</div>
+                    <div class="t m0 x18 hc yf ff1 fs5 fc2 sc0 ls0 ws0"> </div>
+                    <div class="t m0 x18 hc y10 ff1 fs5 fc0 sc0 ls0 ws0"> </div>
+                    <div class="t m0 x19 hc yf ff1 fs5 fc2 sc0 ls0 ws0">E</div>
+                    <div class="t m0 x19 hc y10 ff1 fs5 fc0 sc0 ls0 ws0">E</div>
+                    <div class="t m0 x1a hc yf ff1 fs5 fc2 sc0 ls0 ws0">S</div>
+                    <div class="t m0 x1a hc y10 ff1 fs5 fc0 sc0 ls0 ws0">S</div>
+                    <div class="t m0 x1b hc yf ff1 fs5 fc2 sc0 ls0 ws0">C</div>
+                    <div class="t m0 x1b hc y10 ff1 fs5 fc0 sc0 ls0 ws0">C</div>
+                    <div class="t m0 x1c hc yf ff1 fs5 fc2 sc0 ls0 ws0">O</div>
+                    <div class="t m0 x1c hc y10 ff1 fs5 fc0 sc0 ls0 ws0">O</div>
+                    <div class="t m0 x1d hc yf ff1 fs5 fc2 sc0 ls0 ws0">L</div>
+                    <div class="t m0 x1d hc y10 ff1 fs5 fc0 sc0 ls0 ws0">L</div>
+                    <div class="t m0 x5 hc yf ff1 fs5 fc2 sc0 ls0 ws0">A</div>
+                    <div class="t m0 x5 hc y10 ff1 fs5 fc0 sc0 ls0 ws0">A</div>
+                    <div class="t m0 x1e hc yf ff1 fs5 fc2 sc0 ls0 ws0">R</div>
+                    <div class="t m0 x1e hd y10 ff1 fs5 fc0 sc0 ls0 ws0">R<span class="ff2"> </span></div>
+                </div>
+                <div class="c x1f y11 w6 he">
+                    <div class="t m0 x6 h4 y12 ff2 fs1 fc0 sc0 ls0 ws0">Número do Processo<span class="_ _0"></span> </div>
+                </div>
+                <div class="c x1f ye w7 hf">
+                    <div class="t m0 x6 h10 y13 ff1 fs6 fc0 sc0 ls0 ws0">2 </div>
+                </div>
+                <div class="c x8 ye w7 hf">
+                    <div class="t m0 x6 h10 y13 ff1 fs6 fc0 sc0 ls0 ws0">3 </div>
+                </div>
+                <div class="c x20 ye w7 hf">
+                    <div class="t m0 x6 h10 y13 ff1 fs6 fc0 sc0 ls0 ws0">0 </div>
+                </div>
+                <div class="c x21 ye w7 hf">
+                    <div class="t m0 x6 h10 y13 ff1 fs6 fc0 sc0 ls0 ws0">6 </div>
+                </div>
+                <div class="c x22 ye w7 hf">
+                    <div class="t m0 x6 h10 y13 ff1 fs6 fc0 sc0 ls0 ws0">6 </div>
+                </div>
+                <div class="c x23 ye w7 hf">
+                    <div class="t m0 x6 h11 y14 ff2 fs7 fc0 sc0 ls0 ws0">. </div>
+                </div>
+                <div class="c x24 ye w8 hf">
+                    <div class="t m0 x25 h12 y13 ff2 fs6 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x26 ye w7 hf">
+                    <div class="t m0 x25 h12 y13 ff2 fs6 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x27 ye w7 hf">
+                    <div class="t m0 x25 h12 y13 ff2 fs6 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x28 ye w7 hf">
+                    <div class="t m0 x25 h12 y13 ff2 fs6 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x29 ye w7 hf">
+                    <div class="t m0 x25 h12 y13 ff2 fs6 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x2a ye w7 hf">
+                    <div class="t m0 x25 h12 y13 ff2 fs6 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x2b ye w7 hf">
+                    <div class="t m0 x6 h12 y13 ff2 fs6 fc0 sc0 ls0 ws0">/ </div>
+                </div>
+                <div class="c x2c ye w7 hf">
+                    <div class="t m0 x25 h12 y13 ff2 fs6 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x2d ye w7 hf">
+                    <div class="t m0 x25 h12 y13 ff2 fs6 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x2e ye w7 hf">
+                    <div class="t m0 x6 h12 y13 ff2 fs6 fc0 sc0 ls0 ws0">- </div>
+                </div>
+                <div class="c x2f ye w7 hf">
+                    <div class="t m0 x25 h12 y13 ff2 fs6 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x30 ye w8 hf">
+                    <div class="t m0 x25 h12 y13 ff2 fs6 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x3 y3 w3 h0">
+                    <div class="t m0 x7 h13 y15 ff2 fs8 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c xb y16 w9 h14">
+                    <div class="t m0 x6 h4 y17 ff2 fs1 fc0 sc0 ls0 ws0">Nome do Requerente<span class="_ _0"></span> </div>
+                </div>
+                <div class="c xb y18 w9 h15">
+                    <div class="t m0 x31 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+
+                {# nome #}
+                <div id="nome-requerente" class="c xb w9 h15" style="bottom: 687.78px">{{ processo.user_data.nome }}</div>
+
+                <div class="c xb y1a w9 h17">
+                    <div class="t m0 x6 h18 y1b ff2 fsa fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c xb y1c wa h14">
+                    <div class="t m0 x6 h4 y17 ff2 fs1 fc0 sc0 ls0 ws0">N.º de Matrícula (para <span class="_ _0"></span>aluno da UFBA)<span class="_ _0"></span> </div>
+                </div>
+                <div class="c x32 y1c wb h14">
+                    <div class="t m0 x6 h4 y17 ff2 fs1 fc0 sc0 ls0 ws0">Documento de Identificaçã<span class="_ _0"></span>o (para público exter<span class="_ _0"></span>no à UFBA)<span class="_ _0"></span> </div>
+                </div>
+                <div class="c x33 y1c wc h14">
+                    <div class="t m0 x6 h4 y17 ff2 fs1 fc0 sc0 ls0 ws0">Tipo do documento (esp<span class="_ _0"></span>ecificar) </div>
+                </div>
+                <div class="c xb y1d wd h15">
+                    <div class="t m0 x34 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+
+                {# matricula #}
+                <div id="matricula" class="c y1d h15" style="left: 53.56px; width: 159.184px; text-align: center; letter-spacing: 10px; bottom: 658.7px;">{{ user.matricula }}</div>
+
+                <div class="c x35 y1d we h15">
+                    <div class="t m0 x34 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x36 y1d wf h15">
+                    <div class="t m0 x34 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x37 y1d w10 h15">
+                    <div class="t m0 x34 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x13 y1d w10 h15">
+                    <div class="t m0 x34 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x38 y1d wf h15">
+                    <div class="t m0 x34 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x39 y1d w10 h15">
+                    <div class="t m0 x34 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x3a y1d w11 h15">
+                    <div class="t m0 x34 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x1a y1d w12 h15">
+                    <div class="t m0 x34 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x32 y1d w13 h15">
+                    <div class="t m0 x34 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+
+                {# doc_identifacao #}
+                <div id="doc_identifacao" class="c x32 y1d w13 h15" style="left: 211.21px; width: 215.12px; bottom: 658.7px; letter-spacing: 11px;">{{ processo.user_data.doc_identificacao }}</div>
+
+                <div class="c x3b y1d w14 h15">
+                    <div class="t m0 x34 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x1e y1d w15 h15">
+                    <div class="t m0 x34 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x3c y1d w15 h15">
+                    <div class="t m0 x34 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x3d y1d w14 h15">
+                    <div class="t m0 x34 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x3e y1d w16 h15">
+                    <div class="t m0 x34 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x3f y1d w14 h15">
+                    <div class="t m0 x34 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x40 y1d w15 h15">
+                    <div class="t m0 x34 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x41 y1d w15 h15">
+                    <div class="t m0 x34 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x9 y1d w14 h15">
+                    <div class="t m0 x34 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x42 y1d w15 h15">
+                    <div class="t m0 x34 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x43 y1d w17 h15">
+                    <div class="t m0 x44 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x33 y1d w18 h15">
+                    <div class="t m0 x6 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+
+                {# doc_tipo #}
+                <div id="doc_tipo" class="c x33 y1d w18 h15" style="left: 429.35px; bottom: 659.7px;">{{ processo.user_data.doc_tipo }}</div>
+
+                <div class="c xb y1e w19 h19">
+                    <div class="t m0 x6 h18 y1f ff2 fsa fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c xb y20 w19 h14">
+                    <div class="t m0 x6 h4 y17 ff2 fs1 fc0 sc0 ls0 ws0">Endereço </div>
+                </div>
+                <div class="c xb y21 w19 h1a">
+                    <div class="t m0 x6 h16 yf ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+
+                {# endereco #}
+                <div id="endereco" class="c xb y21 w19 h1a" style="bottom: 630.38px;">{{ processo.user_data.endereco }}</div>
+
+                <div class="c xb y22 w19 h19">
+                    <div class="t m0 x6 h18 y1f ff2 fsa fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c xb y23 w1a h14">
+                    <div class="t m0 x6 h4 y17 ff2 fs1 fc0 sc0 ls0 ws0">Bairro </div>
+                </div>
+                <div class="c x45 y23 w1b h14">
+                    <div class="t m0 x6 h4 y17 ff2 fs1 fc0 sc0 ls0 ws0">Telefone </div>
+                </div>
+                <div class="c x5 y23 w1c h14">
+                    <div class="t m0 x6 h4 y17 ff2 fs1 fc0 sc0 ls0 ws0">e-mail </div>
+                </div>
+                <div class="c x26 y23 w1d h14">
+                    <div class="t m0 x6 h4 y17 ff2 fs1 fc0 sc0 ls0 ws0">CEP </div>
+                </div>
+                <div class="c xb y24 w1a h15">
+                    <div class="t m0 x46 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+
+                {# bairro #}
+                <div id="bairro" class="c xb y24 w1a h15" style="bottom: 601.42px; height: 18.88px;">{{ processo.user_data.bairro}}</div>
+
+                <div class="c x45 y24 w1b h15">
+                    <div class="t m0 xc h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+
+                {# telefone #}
+                <div id="telefone" class="c x45 y24 w1b h15" style="left: 137.5px; bottom: 603.42px;">{{ processo.user_data.telefone }}</div>
+
+                <div class="c x5 y24 w1c h15">
+                    <div class="t m0 x37 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+
+                {# email #}
+                <div id="email" class="c x5 y24 w1c h15" style="left: 235.93px; bottom: 604.42px;">{{ user.email }}</div>
+
+                <div class="c x26 y24 w1e h15">
+                    <div class="t m0 x44 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+
+                {# cep #}
+                <div id="cep-1" class="c x26 y24 w1e h15" style="left: 441.7px; letter-spacing: 7px; width: 73.4px; bottom: 602.42px;">{{ processo.user_data.cep }}</div>
+
+                <div class="c x47 y24 w1f h15">
+                    <div class="t m0 x44 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x48 y24 w1e h15">
+                    <div class="t m0 x44 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x49 y24 w1e h15">
+                    <div class="t m0 x44 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x2b y24 w1e h15">
+                    <div class="t m0 x44 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x4a y24 w1f h15">
+                    <div class="t m0 x25 h16 y19 ff1 fs9 fc0 sc0 ls0 ws0">-<span class="ff2"> </span></div>
+                </div>
+                <div class="c x4b y24 w1e h15">
+                    <div class="t m0 x44 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+
+                {# cep 2 #}
+                <div id="cep-2" class="c x4b y24 w1e h15" style="left: 529.9px; letter-spacing: 7px; bottom: 602.42px; width: 40.4px;"></div>
+
+                <div class="c x4c y24 w1e h15">
+                    <div class="t m0 x44 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x4d y24 w20 h15">
+                    <div class="t m0 x44 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c xb y25 w1a h17">
+                    <div class="t m0 x6 h18 y1b ff2 fsa fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x45 y25 w21 h17">
+                    <div class="t m0 x6 h18 y1b ff2 fsa fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x5 y25 w22 h17">
+                    <div class="t m0 x6 h18 y1b ff2 fsa fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x26 y25 w1d h17">
+                    <div class="t m0 x6 h18 y1b ff2 fsa fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c xb y26 w23 h1b">
+                    <div class="t m0 x6 h4 y17 ff2 fs1 fc0 sc0 ls0 ws0">Curso </div>
+                </div>
+                <div class="c x3d y26 w24 h1b">
+                    <div class="t m0 x6 h4 y17 ff2 fs1 fc0 sc0 ls0 ws0">Data </div>
+                </div>
+                <div class="c x21 y26 w25 h1b">
+                    <div class="t m0 x6 h4 y17 ff2 fs1 fc0 sc0 ls0 ws0">Assinatura </div>
+                </div>
+                <div class="c xb y27 w23 h15">
+                    <div class="t m0 x6 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+
+                {# curso #}
+                <div id="curso" class="c xb y27 w23 h15" style="bottom: 574.31px; left: 51.56px;">{{ processo.user_data.curso }}</div>
+
+                <div class="c x3d y27 w24 h15">
+                    <div id="processo-data" class="t m0 x4e h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"></div>
+                </div>
+                <div class="c x21 y27 w25 h15">
+                    <div class="t m0 x6 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x3 y3 w3 h0">
+                    <div class="t m0 x4f h1c y28 ff1 fsb fc0 sc0 ls0 ws0"> </div>
+                    <div class="t m0 x50 h3 y29 ff1 fs0 fc0 sc0 ls0 ws0">OBJETO DO REQU<span class="_ _0"></span>ERIMENTO<span class="_ _0"></span> </div>
+                    <div class="t m0 x7 h1d y2a ff3 fsb fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c xb y2b w5 h1e">
+                    <div class="t m0 x6 h1f y2c ff2 fsc fc0 sc0 ls2 ws0">[ {% if 'aproveitamento' in processo.tipo_processo %}x{% endif %} ] <span class="ls0">Aproveitamento de Estudos </span></div>
+                    <div class="t m0 x6 h1f y2d ff2 fsc fc0 sc0 ls2 ws0">[ {% if 'adocao' in processo.tipo_processo %}x{% endif %} ] <span class="ls0">Adoção do Nome Social </span></div>
+                    <div class="t m0 x6 h1f y2e ff2 fsc fc0 sc0 ls2 ws0">[ {% if 'desistencia' in processo.tipo_processo %}x{% endif %} ]<span class="ls0"> Desistência definitiva do Curso </span></div>
+                    <div class="t m0 x6 h1f y2f ff2 fsc fc0 sc0 ls2 ws0">[ {% if 'dilatacao' in processo.tipo_processo %}x{% endif %} ] <span class="ls0">Dilatação do Prazo Máximo para Conclusão do Curso </span></div>
+                    <div class="t m0 x6 h1f y30 ff2 fsc fc0 sc0 ls2 ws0">[ {% if 'tirocinio_dispoensa' in processo.tipo_processo %}x{% endif %} ] <span class="ls0">Dispensa de Tirocínio Docente </span></div>
+                    <div class="t m0 x6 h20 y31 ff2 fsc fc0 sc0 ls2 ws0">[ {% if 'superior_mat' in processo.tipo_processo %}x{% endif %} ] <span class="ls0">Matrícula como Portador de Diploma de Nível Superior de caráter especial<span class="fs0"> </span></span>
+                    </div>
+                    <div class="t m0 x6 h1f y32 ff2 fsc fc0 sc0 ls0 ws0">[ {% if 'ingresso_mat' in processo.tipo_processo %}x{% endif %} ] Matrícula de Ingresso através de Processo Seletivo de Vagas Residuais </div>
+                    <div class="t m0 x6 h1f y33 ff2 fsc fc0 sc0 ls2 ws0">[ {% if 'permanencia' in processo.tipo_processo %}x{% endif %} ] Permanência no Curso<span class="_ _0"></span><span class="ls0"> </span></div>
+                </div>
+                <div class="c x1f y2b w26 h1e">
+                    <div class="t m0 x6 h1f y2c ff2 fsc fc0 sc0 ls2 ws0">[ {% if 'reconcideracao' in processo.tipo_processo %}x{% endif %} ] <span class="ls0">Reconsideração de despacho/Recurso </span></div>
+                    <div class="t m0 x6 h1f y2d ff2 fsc fc0 sc0 ls2 ws0">[ {% if 'retificacao' in processo.tipo_processo %}x{% endif %} ] <span class="ls0">Retificação de Histórico </span></div>
+                    <div class="t m0 x6 h1f y2e ff5 fsc fc0 sc0 ls0 ws0">[ {% if 'ex_oficio_transferencia' in processo.tipo_processo %}x{% endif %} ] Transferência “<span class="ff6 ls3">ex<span class="ls0">-officio</span></span>”<span class="ff2"> </span></div>
+                    <div class="t m0 x6 h1f y2f ff2 fsc fc0 sc0 ls0 ws0">[ {% if 'especial_transferencia' in processo.tipo_processo %}x{% endif %} ] Transferência Interna de Caráter Especial </div>
+                    <div class="t m0 x6 h1f y30 ff2 fsc fc0 sc0 ls0 ws0">[ {% if 'pos_transferencia' in processo.tipo_processo %}x{% endif %} ] Transferência Pós-Graduação </div>
+                    <div class="t m0 x6 h1f y31 ff2 fsc fc0 sc0 ls0 ws0">[ {% if 'trancamento' in processo.tipo_processo %}x{% endif %} ] Trancamento de Matrícula </div>
+                    <div class="t m0 x6 h1f y32 ff2 fsc fc0 sc0 ls2 ws0"> <span class="ls0">     [ {% if 'trancamento-parcial' in processo.tipo_processo %}x{% endif %} ] Total de inscrição em disciplinas </span></div>
+                    <div class="t m0 x6 h1f y33 ff2 fsc fc0 sc0 ls2 ws0">      [ {% if 'trancamento-total' in processo.tipo_processo %}x{% endif %} ] Par<span class="ls0">cial de inscrição em disciplinas </span></div>
+                    <div class="t m0 x6 h1f y34 ff2 fsc fc0 sc0 ls2 ws0">      [ {% if 'trancamento-tempo' in processo.tipo_processo %}x{% endif %} ] Por tempo deter<span class="_ _0"></span>minado<span class="ls0"> </span></div>
+                </div>
+                <div class="c x3 y3 w3 h0">
+                    <div class="t m0 x7 h21 y35 ff1 fsc fc0 sc0 ls0 ws0"> </div>
+                    <div class="t m0 x7 h3 y36 ff1 fsc fc0 sc0 ls0 ws0">Outros<span class="ff2"> <span class="ff7"></span>[ {% if 'outros' in processo.tipo_processo %}x{% endif %} ] ( especificar) ________________________________________________________________<span class="ls3">____</span>_________________________<span class="_ _0"></span>_<span class="ls3">____</span>___</span><span class="fs0"> </span></div>
+                    <div class="t m0 x4f h1c y37 ff1 fsb fc0 sc0 ls0 ws0"> </div>
+                    <div class="t m0 x51 h3 y38 ff1 fs0 fc0 sc0 ls0 ws0">ESCLARECIMENTOS<span class="_ _0"></span> </div>
+                    <div class="t m0 x52 h3 y39 ff1 fs0 fc0 sc0 ls4 ws0">_________________________________________________________________________________________________________________<span class="ls0"> </span></div>
+                    <div class="t m0 x52 h3 y3a ff1 fs0 fc0 sc0 ls4 ws0">_________________________________________________________________________________________________________________<span class="ls0"> </span></div>
+                    <div class="t m0 x52 h3 y3b ff1 fs0 fc0 sc0 ls4 ws0">_________________________________________________________________________________________________________________<span class="ls0"> </span></div>
+                    <div class="t m0 x52 h3 y3c ff1 fs0 fc0 sc0 ls4 ws0">_________________________________________________________________________________________________________________<span class="ls0"> </span></div>
+                    <div class="t m0 x52 h3 y3d ff1 fs0 fc0 sc0 ls4 ws0">_________________________________________________________________________________________________________________<span class="ls0"> </span></div>
+                    <div class="t m0 x52 h3 y3e ff1 fs0 fc0 sc0 ls4 ws0">_________________________________________________________________________________________________________________<span class="ls0"> </span></div>
+                    <div class="t m0 x52 h3 y3f ff1 fs0 fc0 sc0 ls4 ws0">_________________________________________________________________________________________________________________<span class="ls0"> </span></div>
+                    <div class="t m0 x52 h3 y40 ff1 fs0 fc0 sc0 ls4 ws0">_________________________________________________________________________________________________________________<span class="ls0"> </span></div>
+                    <div class="t m0 x52 h3 y41 ff1 fs0 fc0 sc0 ls4 ws0">_________________________________________________________________________________________________________________<span class="ls0"> </span></div>
+                    <div class="t m0 x53 h4 y42 ff2 fs1 fc0 sc0 ls0 ws0">ASSINATURA E CARIMBO<span class="_ _0"></span> DO RESPONSÁVEL <span class="_ _0"></span>DA UFBA PE<span class="_ _0"></span>LA INSTRUÇÃO <span class="_ _0"></span>DO PROCESSO<span class="_ _0"></span><span class="fs8 ls5">___________________________________________________________</span><span class="fsd">________________ </span></div>
+                    <div class="t m0 x4 h18 y43 ff2 fsa fc0 sc0 ls0 ws0"> </div>
+                    <div class="t m0 x7 h22 y44 ff2 fsb fc0 sc0 ls0 ws0"> </div>
+                    {# esclarecimentos #}
+                    <textarea id="esclarecimentos" class="t m0 x52 h3 y41 ff1 fs0 fc0 sc0 ls4 ws0" wrap="hard" style="width: 2052px; height: 608px; background: transparent; border: none; line-height: 68px; overflow: hidden;">{{ processo.esclarecimentos }}</textarea>
+                </div>
+                <div class="c xb y45 w27 h23">
+                    <div class="t m0 x54 h4 y46 ff2 fs1 fc0 sc0 ls0 ws0"> </div>
+                    <div class="t m0 x7 h24 y47 ff2 fs2 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x55 y48 w28 h25">
+                    <div class="t m0 x38 h21 y49 ff1 fsc fc0 sc0 ls0 ws0">UNIVERSIDADE FEDERAL DA BAHIA </div>
+                    <div class="t m0 x56 h26 y4a ff1 fs4 fc0 sc0 ls0 ws0">CARE <span class="ff4">–</span> COORDE<span class="_ _1"></span>NAÇÃO DE ATEN<span class="_ _1"></span>DIMENTO E REGISTR<span class="_ _1"></span>OS ESTUDANTIS<span class="fs3"> </span></div>
+                </div>
+                <div class="c x55 y45 w29 h27">
+                    <div class="t m0 x57 h3 y4b ff1 fs0 fc0 sc0 ls0 ws0">COMPROVANTE DE <span class="_ _0"></span>PROTOCOLO DE<span class="_ _0"></span> </div>
+                    <div class="t m0 x58 h28 y4c ff1 fs0 fc0 sc0 ls0 ws0">REQUERIMENTO <span class="_ _0"></span>ESCOLAR<span class="fs9"> </span></div>
+                </div>
+                <div class="c x1f y4d w2a h29">
+                    <div class="t m0 x59 ha y4e ff2 fs1 fc0 sc0 ls0 ws0">Número do Processo<span class="_ _0"></span><span class="fs4"> </span></div>
+                </div>
+                <div class="c x1f y45 w7 h2a">
+                    <div class="t m0 x6 h28 y4f ff1 fs9 fc0 sc0 ls0 ws0">2 </div>
+                </div>
+                <div class="c x8 y45 w7 h2a">
+                    <div class="t m0 x6 h28 y4f ff1 fs9 fc0 sc0 ls0 ws0">3 </div>
+                </div>
+                <div class="c x20 y45 w7 h2a">
+                    <div class="t m0 x6 h28 y4f ff1 fs9 fc0 sc0 ls0 ws0">0 </div>
+                </div>
+                <div class="c x21 y45 w7 h2a">
+                    <div class="t m0 x6 h28 y4f ff1 fs9 fc0 sc0 ls0 ws0">6 </div>
+                </div>
+                <div class="c x22 y45 w7 h2a">
+                    <div class="t m0 x6 h28 y4f ff1 fs9 fc0 sc0 ls0 ws0">6 </div>
+                </div>
+                <div class="c x23 y45 w7 h2a">
+                    <div class="t m0 x6 h2b y50 ff1 fse fc0 sc0 ls0 ws0">. </div>
+                </div>
+                <div class="c x24 y45 w8 h2a">
+                    <div class="t m0 x25 h2c y50 ff2 fse fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x26 y45 w7 h2a">
+                    <div class="t m0 x25 h2c y50 ff2 fse fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x27 y45 w7 h2a">
+                    <div class="t m0 x25 h2c y50 ff2 fse fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x28 y45 w7 h2a">
+                    <div class="t m0 x25 h2c y50 ff2 fse fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x29 y45 w7 h2a">
+                    <div class="t m0 x25 h2c y50 ff2 fse fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x2a y45 w7 h2a">
+                    <div class="t m0 x25 h2c y50 ff2 fse fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x2b y45 w7 h2a">
+                    <div class="t m0 x6 h2c y50 ff2 fse fc0 sc0 ls0 ws0">/ </div>
+                </div>
+                <div class="c x2c y45 w7 h2a">
+                    <div class="t m0 x25 h16 y4f ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x2d y45 w7 h2a">
+                    <div class="t m0 x25 h16 y4f ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x2e y45 w7 h2a">
+                    <div class="t m0 x6 h2c y50 ff2 fse fc0 sc0 ls0 ws0">- </div>
+                </div>
+                <div class="c x2f y45 w7 h2a">
+                    <div class="t m0 x25 h2c y50 ff2 fse fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x30 y45 w8 h2a">
+                    <div class="t m0 x25 h2c y50 ff2 fse fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x3 y3 w3 h0">
+                    <div class="t m0 x7 h13 y51 ff2 fs8 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c xb y52 w2b h14">
+                    <div class="t m0 x6 h4 y17 ff2 fs1 fc0 sc0 ls0 ws0">Nome do Requerente<span class="_ _0"></span> </div>
+                </div>
+                <div class="c x5a y52 w2c h14">
+                    <div class="t m0 x6 h4 y17 ff2 fs1 fc0 sc0 ls0 ws0">N.º de Matrícula (para <span class="_ _0"></span>aluno da UFBA)<span class="_ _0"></span> </div>
+                </div>
+                <div class="c xb y53 w2d h15">
+                    <div class="t m0 x5b h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x5a y53 w2e h15">
+                    <div class="t m0 x5c h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x21 y53 w2f h15">
+                    <div class="t m0 x5c h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x23 y53 w2f h15">
+                    <div class="t m0 x5c h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x5d y53 w30 h15">
+                    <div class="t m0 x5c h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x5e y53 w2f h15">
+                    <div class="t m0 x5c h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x5f y53 w2f h15">
+                    <div class="t m0 x5c h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x60 y53 w2e h15">
+                    <div class="t m0 x5c h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x61 y53 w2f h15">
+                    <div class="t m0 x5c h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x62 y53 w31 h15">
+                    <div class="t m0 x5c h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c xb y54 w32 h17">
+                    <div class="t m0 x6 h18 y1b ff2 fsa fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c xb y55 w33 h14">
+                    <div class="t m0 x6 h4 y17 ff2 fs1 fc0 sc0 ls0 ws0">Objeto do Requerimento<span class="_ _0"></span> </div>
+                </div>
+                <div class="c x5d y55 w34 h14">
+                    <div class="t m0 x6 h4 y17 ff2 fs1 fc0 sc0 ls0 ws0">Data </div>
+                </div>
+                <div class="c xb y56 w33 h15">
+                    <div class="t m0 x6 h16 y19 ff2 fs9 fc0 sc0 ls0 ws0"> </div>
+                </div>
+                <div class="c x5d y56 w34 h15">
+                    <div class="t m0 x63 h16 y19 ff2 fs9 fc0 sc0 ls6 ws0">__<span class="ls7">__<span class="ls0">_/_</span></span>__<span class="ls0">__/_<span class="ls7">____</span> </span>
+                    </div>
+                </div>
+                <div class="c x3 y3 w3 h0">
+                    <div class="t m0 x64 h4 y57 ff2 fsd fc0 sc0 ls0 ws0">ASSINATURA E CARIMBO DO RESPONSÁVEL <span class="_ _1"></span>DA UFBA PELA INSTRUÇÃO DO PROCESSO_________<span class="_ _0"></span>____________________________________________________<span class="fs1">____________<span class="_ _0"></span>____ </span>
+                    </div>
+                    <div class="t m0 x4 h4 y58 ff2 fs1 fc0 sc0 ls0 ws0"> </div>
+                    <div class="t m0 x65 h2d y59 ff1 fs4 fc0 sc0 ls0 ws0">INFORMAÇÕES IM<span class="_ _1"></span>PORTANTES </div>
+                    <div class="t m0 x7 h2e y5a ff2 fs1 fc0 sc0 ls8 ws0">1.<span class="ff8 ls0"> <span class="_ _2"> </span><span class="ff2">Acompanhe <span class="_ _3"></span>o <span class="_ _3"></span>andamento <span class="_ _3"></span>da <span class="_ _3"></span>sua <span class="_ _3"></span>solicitação <span class="_ _3"></span>pelo <span class="_ _3"></span>número <span class="_ _3"></span>do <span class="_ _3"></span>protocolo. <span class="_ _3"></span>Isso <span class="_ _3"></span>pode <span class="_ _3"></span>ser <span class="_ _3"></span>feito <span class="_ _3"></span>em <span class="_ _3"></span>qualquer <span class="_ _3"></span>Unidade<span class="_ _0"></span> <span class="_ _4"> </span>Universitária <span class="_ _3"></span>ou <span class="_ _3"></span>Órgão <span class="_ _3"> </span>q<span class="_ _0"></span>ue <span class="_ _3"></span>disponha <span class="_ _3"></span>do <span class="_ _3"></span>Sistema <span class="_ _3"> </span>Integra<span class="_ _0"></span>do <span class="_ _3"></span>de </span>
+                        </span>
+                    </div>
+                    <div class="t m0 x66 h4 y5b ff2 fs1 fc0 sc0 ls0 ws0">Patrimônio, Administraç<span class="_ _0"></span>ão e Contratos (SIP<span class="_ _0"></span>AC) ou em <span class="_ _0"></span><span class="fc1">www.sipac.ufba.br</span> <span class="_ _0"></span>. Fique sempre d<span class="_ _0"></span>e posse deste c<span class="_ _0"></span>anhoto: ele é o seu compr<span class="_ _0"></span>ovante.<span class="_ _0"></span> </div>
+                    <div class="t m0 x7 h2e y5c ff2 fs1 fc0 sc0 ls8 ws0">2.<span class="ff8 ls0"> <span class="_ _2"> </span><span class="ff2">O prazo para recurso d<span class="_ _0"></span>e decisão de process<span class="_ _0"></span>o é de 10 (dez) dias, c<span class="_ _0"></span>ontados a partir da <span class="_ _0"></span>d<span class="_ _0"></span>ata da ciência d<span class="_ _0"></span>o resultado.<span class="_ _0"></span> </span>
+                        </span>
+                    </div>
+                    <div class="t m0 x7 h2e y5d ff2 fs1 fc0 sc0 ls8 ws0">3.<span class="ff8 ls0"> <span class="_ _2"> </span><span class="ff5">Quando <span class="_ _0"></span>a <span class="_ _0"></span>sit<span class="_ _0"></span>uação <span class="_ _0"></span>do <span class="_ _0"></span>pr<span class="_ _0"></span>ocesso <span class="_ _0"></span>estiv<span class="_ _0"></span>er <span class="_ _0"></span>como <span class="_ _5"></span>“<span class="ff1">diligên<span class="_ _0"></span>cia</span>”, <span class="_ _0"></span>proc<span class="_ _0"></span>ure i<span class="_ _0"></span>mediatam<span class="_ _0"></span>ente <span class="_ _0"></span>o <span class="_ _0"></span>Ór<span class="_ _0"></span>gão <span class="_ _0"></span>no <span class="_ _0"></span>qual <span class="_ _5"></span>ele <span class="_ _0"></span>se <span class="_ _5"></span>encontra. <span class="_ _0"></span>A<span class="_ _0"></span>pós <span class="_ _5"></span><span class="ff2">o <span class="_ _0"></span>prazo <span class="_ _0"></span>d<span class="_ _0"></span>e <span class="_ _0"></span>90 <span class="_ _0"></span>(<span class="_ _0"></span>noventa<span class="ls9">) <span class="_ _0"></span></span>dias <span class="_ _5"></span>nessa <span class="_ _0"></span>si<span class="_ _0"></span>tuação, <span class="_ _0"></span>o <span class="_ _5"></span>processo </span>
+                        </span>
+                        </span>
+                    </div>
+                    <div class="t m0 x66 h4 y5e ff2 fs1 fc0 sc0 ls0 ws0">será arquivado.<span class="_ _0"></span> </div>
+                </div>
+                <a class="l" href="mailto:sgc@ufba.br">
+                    <div class="d m1" style="border-style:none;position:absolute;left:535.420000px;bottom:14.190000px;width:33.830000px;height:8.032000px;background-color:rgba(255,255,255,0.000001);"></div>
+                </a>
+                <a class="l" href="http://www.sipac.ufba.br/">
+                    <div class="d m1" style="border-style:none;position:absolute;left:212.510000px;bottom:87.373000px;width:51.390000px;height:8.033000px;background-color:rgba(255,255,255,0.000001);"></div>
+                </a>
+            </div>
+            <div class="pi" data-data='{"ctm":[1.000000,0.000000,0.000000,1.000000,0.000000,0.000000]}'></div>
+        </div>
+    </div>
+</body>
+
+</html>

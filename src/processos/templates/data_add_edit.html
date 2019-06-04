@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block sidenav %}
+  {% include "sidenav.html" %}
+{% endblock %}
+
+{% block content %}
+    <!-- Top navbar -->
+    {% include 'topbar.html' %}
+    <!-- Header -->
+    <div class="header bg-gradient-primary pb-8 pt-5 pt-md-8">
+      <div class="container-fluid">
+        <div class="header-body"></div>
+      </div>
+    </div>
+    <!-- Page content -->
+    <div class="container-fluid mt--7 pb-5">
+        <div class="card bg-secondary shadow">
+            <div class="card-header bg-white border-0">
+              <div class="row align-items-center">
+                <div class="col-8">
+                  <h3 class="mb-0">Novos dados</h3>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+              <form method="post">
+                {% csrf_token %}
+                <h6 class="heading-small text-muted mb-4">Dados pessoais</h6>
+                <div class="pl-lg-4">
+                  <div class="row">
+                    <div class="col-lg-12">
+                      <div class="form-group focused">
+                        {{ form.nome.label }}
+                        {{ form.nome }}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-lg-3">
+                        Matrícula
+                        <input type="text" value="{{ user.matricula }}" class="form-control form-control-alternative" disabled>
+                    </div>
+                    <div class="col-lg-6">
+                      <div class="form-group focused">
+                        {{ form.doc_identificacao.label }}
+                        {{ form.doc_identificacao }}
+                      </div>
+                    </div>
+                    <div class="col-lg-3">
+                      <div class="form-group focused">
+                        {{ form.doc_tipo.label }}
+                        {{ form.doc_tipo }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <hr class="my-4">
+                <!-- Address -->
+                <h6 class="heading-small text-muted mb-4">Endereço</h6>
+                <div class="pl-lg-4">
+                  <div class="row">
+                    <div class="col-md-12">
+                      <div class="form-group focused">
+                        {{ form.endereco.label }}
+                        {{ form.endereco }}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-lg-4">
+                      <div class="form-group focused">
+                       {{ form.bairro.label }}
+                       {{ form.bairro }}
+                      </div>
+                    </div>
+                    <div class="col-lg-4">
+                      <div class="form-group focused">
+                        {{ form.cep.label }}
+                        {{ form.cep }}
+                      </div>
+                    </div>
+                    <div class="col-lg-4">
+                      <div class="form-group">
+                        {{ form.telefone.label }}
+                        {{ form.telefone }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <hr class="my-4">
+                <!-- Description -->
+                <h6 class="heading-small text-muted mb-4">Curso</h6>
+                <div class="pl-lg-4">
+                  <div class="form-group focused">
+                    {{ form.curso.label }}
+                    {{ form.curso }}
+                  </div>
+                </div>
+                {% if add %}
+                    <button type="submit" class="btn btn-defaul float-right">Cadastrar</button>
+                {% else %}
+                    <button type="submit" class="btn btn-defaul float-right">Salvar</button>
+                {% endif %}
+              </form>
+            </div>
+        </div>
+    </div>
+{% endblock %}

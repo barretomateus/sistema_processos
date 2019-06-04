@@ -1,0 +1,49 @@
+<div class="col">
+    <div class="card shadow">
+    <div class="card-header border-0">
+        <div class="row align-items-center">
+            <div class="col">
+                <h3 class="mb-0">Dados cadastrados</h3>
+            </div>
+            <div class="col text-right">
+                <a href="{% url 'add_user_data' %}" class="btn btn-sm btn-primary">Novo</a>
+            </div>
+            </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table align-items-center table-flush">
+        <thead class="thead-light">
+            <tr>
+            <th scope="col">ID</th>
+            <th scope="col">Nome</th>
+            <th scope="col">Documento</th>
+            <th scope="col">Endereço</th>
+            <th scope="col">Curso</th>
+            <th class="text-center" scope="col">Opções</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for data in user_data %}
+            <tr>
+                <td>{{ data.id }}</td>
+                <td>{{ data.nome }}</td>
+                <td>{{ data.doc_identificacao }}</td>
+                <td>{{ data.endereco }}</td>
+                <td>{{ data.curso }}</td>
+                <td class="text-center">
+                    <button id="edit-{{ data.id }}" class="btn-edit btn btn-sm btn-icon btn-2 btn-primary" type="button">
+                        <span class="btn-inner--icon"><ion-icon name="create"></ion-icon></span>
+                    </button>
+                    <button id="delete-{{ data.id }}" class="btn-delete btn btn-sm btn-icon btn-2 btn-warning" type="button">
+                        <span class="btn-inner--icon"><ion-icon name="trash"></ion-icon></span>
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        </table>
+    </div>
+    <div class="card-footer py-4">
+    </div>
+    </div>
+</div>

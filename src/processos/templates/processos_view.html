@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block sidenav %}
+  {% include "sidenav.html" %}
+{% endblock %}
+
+{% block content %}
+    <!-- Top navbar -->
+    {% include 'topbar.html' %}
+    <!-- Header -->
+    <div class="header bg-gradient-primary pb-8 pt-5 pt-md-8">
+      <div class="container-fluid">
+        <div class="header-body"></div>
+      </div>
+    </div>
+    <!-- Page content -->
+    <div class="container-fluid mt--7 pb-5">
+        <div class="card bg-secondary shadow">
+            <div class="card-header bg-white border-0">
+              <div class="row align-items-center">
+                <div class="col-8">
+                  <h3 class="mb-0">Visualizar processo</h3>
+                </div>
+              </div>
+            </div>
+            <div class="card-body">
+                {% csrf_token %}
+                <h6 class="heading-small text-muted mb-4">Dados pessoais</h6>
+                <div class="pl-lg-4">
+                  <div class="row">
+                    <div class="col-lg-12">
+                      <div class="form-group focused">
+                        {{ user_data.nome }}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-lg-3">
+                        {{ user.matricula }}
+                    </div>
+                    <div class="col-lg-6">
+                      <div class="form-group focused">
+                        {{ user_data.doc_identificacao }}
+                      </div>
+                    </div>
+                    <div class="col-lg-3">
+                      <div class="form-group focused">
+                        {{ user_data.doc_tipo }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <hr class="my-4">
+                <h6 class="heading-small text-muted mb-4">Endereço</h6>
+                <div class="pl-lg-4">
+                  <div class="row">
+                    <div class="col-md-12">
+                      <div class="form-group focused">
+                        {{ user_data.endereco }}
+                      </div>
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="col-lg-4">
+                      <div class="form-group focused">
+                       {{ user_data.bairro }}
+                      </div>
+                    </div>
+                    <div class="col-lg-4">
+                      <div class="form-group focused">
+                        {{ user_data.cep }}
+                      </div>
+                    </div>
+                    <div class="col-lg-4">
+                      <div class="form-group">
+                        {{ user_data.telefone }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <hr class="my-4">
+                <h6 class="heading-small text-muted mb-4">Curso</h6>
+                <div class="pl-lg-4">
+                  <div class="form-group focused">
+                    {{ user_data.curso }}
+                  </div>
+                </div>
+                <hr class="my-4">
+                <div style="display: none"><textarea name="tipo_processo" cols="40" rows="10" id="id_tipo_processo">{{ processo.tipo_processo }}</textarea></div>
+                <h6 class="heading-small text-muted mb-4">Objeto do Requerimento</h6>
+                <div class="row">
+                    <div class="col">
+                        <div class="custom-control custom-control-alternative custom-checkbox mb-3">
+                            <input class="custom-control-input" disabled name="tipos[]" value="aproveitamento" id="aproveitamento" type="checkbox">
+                            <label class="custom-control-label" for="aproveitamento">Aproveitamento de Estudos</label>
+                        </div>
+                        <div class="custom-control custom-control-alternative custom-checkbox mb-3">
+                            <input class="custom-control-input" disabled name="tipos[]" value="desistencia" id="desistencia" type="checkbox">
+                            <label class="custom-control-label" for="desistencia">Desistência definitiva do Curso</label>
+                        </div>
+                        <div class="custom-control custom-control-alternative custom-checkbox mb-3">
+                            <input class="custom-control-input" disabled name="tipos[]" value="dilatacao" id="dilatacao" type="checkbox">
+                            <label class="custom-control-label" for="dilatacao">Dilatação do Prazo Máximo para Conclusão do Curso</label>
+                        </div>
+                        <div class="custom-control custom-control-alternative custom-checkbox mb-3">
+                            <input class="custom-control-input" disabled name="tipos[]" value="pre_dispensa" id="pre_dispensa" type="checkbox">
+                            <label class="custom-control-label" for="pre_dispensa">Dispensa de Tirocínio Docente</label>
+                        </div>
+                        <div class="custom-control custom-control-alternative custom-checkbox mb-3">
+                            <input class="custom-control-input" disabled name="tipos[]" value="superior_mat" id="superior_mat" type="checkbox">
+                            <label class="custom-control-label" for="superior_mat">Matrícula como Pordator de Diploma de Nível Superior de caráter especial</label>
+                        </div>
+                        <div class="custom-control custom-control-alternative custom-checkbox mb-3">
+                            <input class="custom-control-input" disabled name="tipos[]" value="ingresso_mat" id="ingresso_mat" type="checkbox">
+                            <label class="custom-control-label" for="ingresso_mat">Matrícula de Ingresso através de Processo Seletivo de Vagas Residuais</label>
+                        </div>
+                        <div class="custom-control custom-control-alternative custom-checkbox mb-3">
+                            <input class="custom-control-input" disabled name="tipos[]" value="permanencia" id="permanencia" type="checkbox">
+                            <label class="custom-control-label" for="permanencia">Permanência no Curso</label>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="custom-control custom-control-alternative custom-checkbox mb-3">
+                            <input class="custom-control-input" disabled name="tipos[]" value="reconcideracao" id="reconcideracao" type="checkbox">
+                            <label class="custom-control-label" for="reconcideracao">Reconsideração de despacho/Recurso</label>
+                        </div>
+                        <div class="custom-control custom-control-alternative custom-checkbox mb-3">
+                            <input class="custom-control-input" disabled name="tipos[]" value="retificacao" id="retificacao" type="checkbox">
+                            <label class="custom-control-label" for="retificacao">Retificação de Histórico</label>
+                        </div>
+                        <div class="custom-control custom-control-alternative custom-checkbox mb-3">
+                            <input class="custom-control-input" disabled name="tipos[]" value="ex_oficio_transferencia" id="ex_oficio_transferencia" type="checkbox">
+                            <label class="custom-control-label" for="ex_oficio_transferencia">Transferência "ex-officio"</label>
+                        </div>
+                        <div class="custom-control custom-control-alternative custom-checkbox mb-3">
+                            <input class="custom-control-input" disabled name="tipos[]" value="especial_transferencia" id="especial_transferencia" type="checkbox">
+                            <label class="custom-control-label" for="especial_transferencia">Transferência Interna de Caráter Especial</label>
+                        </div>
+                        <div class="custom-control custom-control-alternative custom-checkbox mb-3">
+                            <input class="custom-control-input" disabled name="tipos[]" value="pos_transferencia" id="pos_transferencia" type="checkbox">
+                            <label class="custom-control-label" for="pos_transferencia">Transferência Pós-Graduação</label>
+                        </div>
+                        <div class="custom-control custom-control-alternative custom-checkbox mb-3">
+                            <input class="custom-control-input" disabled name="tipos[]" value="trancamento" id="trancamento" type="checkbox">
+                            <label class="custom-control-label" for="trancamento">Trancamento</label>
+                        </div>
+                        <div class="custom-control custom-control-alternative custom-checkbox mb-3">
+                            <input class="custom-control-input" disabled name="tipos[]" value="trancamento-parcial" id="trancamento-parcial" type="checkbox">
+                            <label class="custom-control-label" for="trancamento-parcial">Parcial de inscrição em disciplinas</label>
+                        </div>
+                        <div class="custom-control custom-control-alternative custom-checkbox mb-3">
+                            <input class="custom-control-input" disabled name="tipos[]" value="trancamento-total" id="trancamento-total" type="checkbox">
+                            <label class="custom-control-label" for="trancamento-total">Total de inscrição em disciplinas <small>(semestre corrente)</small></label>
+                        </div>
+                        <div class="custom-control custom-control-alternative custom-checkbox mb-3">
+                            <input class="custom-control-input" disabled name="tipos[]" value="trancamento-tempo" id="trancamento-tempo" type="checkbox">
+                            <label class="custom-control-label" for="trancamento-tempo">Por tempo determinado</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="custom-control custom-control-alternative custom-checkbox mb-3">
+                    <input class="custom-control-input" disabled value="outros" id="outros" type="checkbox">
+                    <label class="custom-control-label" for="outros">Outros</label>
+                </div>
+                <div class="form-group focused">
+                    <label>Esclarecimentos:</label><br/>
+                    {{ processo.esclarecimentos }}
+                </div>
+                <hr class="my-4">
+                <div class="form-group focused">
+                    <label>Número do processo:</label>
+                    {{ processo.numero }}
+                </div>
+                <div class="form-group focused">
+                    <label>Natureza do processo:</label>
+                    {{ processo.natureza_processo }}
+                </div>
+                <div class="form-group focused">
+                    <label>Parecer:</label>
+                    {{ processo.parecer }}
+                </div>
+                <button id="btn-imprimir" class="float-right btn btn-icon btn-3 btn-primary" type="button">
+                  <span class="btn-inner--icon"><ion-icon name="print"></ion-icon></span>
+                  <span class="btn-inner--text">Imprimir</span>
+                </button>
+            </div>            
+        </div>
+    </div>
+{% endblock %}
+
+{% block js %}
+  <script src="{% static '/js/processos_view.js' %}"></script>
+{% endblock %}

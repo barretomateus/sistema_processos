@@ -1,0 +1,42 @@
+{% load static %}
+
+<nav class="navbar navbar-vertical fixed-left navbar-expand-md navbar-light bg-white" id="sidenav-main">
+    <div class="container-fluid">
+        <!-- Toggler -->
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#sidenav-collapse-main" aria-controls="sidenav-main" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+        </button>
+        <!-- Brand -->
+        <a class="navbar-brand pt-0" href="#"></a>
+        <!-- Collapse -->
+        <div class="collapse navbar-collapse" id="sidenav-collapse-main">
+        <!-- Collapse header -->
+        <div class="navbar-collapse-header d-md-none">
+            <div class="row">
+            <div class="col-6 collapse-brand">
+                <a href="#"></a>
+            </div>
+            <div class="col-6 collapse-close">
+                <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#sidenav-collapse-main" aria-controls="sidenav-main" aria-expanded="false" aria-label="Toggle sidenav">
+                <span></span>
+                <span></span>
+                </button>
+            </div>
+            </div>
+        </div>
+        <!-- Navigation -->
+        <ul class="navbar-nav pt-5">
+            <li class="nav-item">
+            <a class="nav-link" href="{% url 'processos' %}">
+                <i class="ni ni-bullet-list-67 text-primary"></i> Meus processos
+            </a>
+            </li>
+            <li class="nav-item">
+            <a class="nav-link" href="{% url 'user_data' %}">
+                <i class="ni ni-archive-2 text-primary"></i> Dados cadastrados
+            </a>
+            </li>
+        </ul>
+        </div>
+    </div>
+</nav>
